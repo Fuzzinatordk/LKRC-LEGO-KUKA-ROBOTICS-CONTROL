@@ -4,7 +4,7 @@ Requirements:
   - Python 3.xx
   - Pybricks firmware on hub
   - Bluetooth connectivity on device
-Python libs (can be installed with pip3 or any other package manager):
+    Python libs (can be installed with pip3 or any other package manager):
   - Roboticstoolbox-python
   - Numpy
   - Spartialmath-python
