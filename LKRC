@@ -207,7 +207,7 @@ class LKRC:
         print("Press 'q' to run the program, make sure bluetooth on your device is on and the robot is turned on")
         keyboard.wait('q')
         print("Running program...")
-        command = f'pipx run pybricksdev run ble {self.fileName}.py'
+        command = f'pipx run pybricksdev run ble {self.fileName}'
         while(True):
             result = self.__terminalCmd(command)
             time.sleep(0.5)
