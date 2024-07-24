@@ -9,7 +9,7 @@ Requirements:
   - Numpy
   - Spartialmath-python
   - Keyboard
+  - Time
   - pybricksdev
   - pybricks
   - pipx
-  - mpy-cross(optional)
