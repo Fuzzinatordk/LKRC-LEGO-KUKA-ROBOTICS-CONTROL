@@ -1,9 +1,9 @@
 import sys, subprocess,roboticstoolbox as rtb, numpy as np
 from spatialmath import SE3
-import keyboard
+import keyboard, time
 class LKRC:
     def __init__(self):
-        self.fileName = "main.py"
+        self.fileName = "kukaCode.py"
         self.limitsDegrees = [[-170, 160], [-350, 350], [10, 145], [-115, 105], [-150, -20], [-350, 350]]
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         self.__DHParams()
@@ -181,6 +181,7 @@ class LKRC:
     "    await multitask(run_motors(),stallMotors(), print_angles(watch))\n\n"
     
     "def main():\n"
+    "    print('Starting program')\n"
     "    homing()\n"
     "    dutyLimitMotors()\n"
     "    watch = StopWatch()\n"
@@ -201,14 +202,15 @@ class LKRC:
     def __createFile(self,content):
         with open(self.fileName, 'w') as file:
             file.write(content)
-        command = 'mpy-cross ' + self.fileName
-        result = self.__terminalCmd(command)
-        if result.returncode != 0:
-            print("Failed to compile the file")
-            sys.exit(1)
         self.__runFile()     
     def __runFile(self):
         print("Press 'q' to run the program, make sure bluetooth on your device is on and the robot is turned on")
         keyboard.wait('q')
-        command = f'pipx run pybricksdev run ble main.py'
-        result = self.__terminalCmd(command)
+        print("Running program...")
+        command = f'pipx run pybricksdev run ble {self.fileName}.py'
+        while(True):
+            result = self.__terminalCmd(command)
+            time.sleep(0.5)
+            if(result.stdout == 'Starting program\n'):
+                break
+
