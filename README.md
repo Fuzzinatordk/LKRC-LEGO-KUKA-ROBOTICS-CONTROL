@@ -10,5 +10,6 @@ Requirements:
   - Spartialmath-python
   - Keyboard
   - pybricksdev
+  - pybricks
   - pipx
   - mpy-cross(optional)
