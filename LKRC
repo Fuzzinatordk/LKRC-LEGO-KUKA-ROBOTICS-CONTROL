@@ -183,7 +183,6 @@ class LKRC:
     "def main():\n"
     "    homing()\n"
     "    dutyLimitMotors()\n"
-    "    hub."
     "    watch = StopWatch()\n"
     "    run_task(driveMotors(watch))\n"
     "    watch.reset()\n\n"
