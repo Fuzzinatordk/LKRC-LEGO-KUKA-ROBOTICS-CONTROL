@@ -22,8 +22,6 @@ class LKRC:
             self.links.append(self.link)
         self.kuka_robot = rtb.DHRobot(self.links, name='KUKA 6-DOF')
         limitArray = np.ndarray(shape=(2,6),dtype=float, order='F', buffer=self.limitsRadian)
-        print(limitArray)
-        print(self.limitsRadian)
         self.kuka_robot.qlim = limitArray
     def DH(self):
         print(self.kuka_robot)
