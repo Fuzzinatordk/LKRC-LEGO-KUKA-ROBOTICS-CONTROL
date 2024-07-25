@@ -93,7 +93,7 @@ class LKRC:
     
     "async def homingMotors():\n"
     "    await multitask(\n"
-    "        motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
+    "        #motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
     "        motorB.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
     "        motorC.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
     "        motorD.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
@@ -168,10 +168,10 @@ class LKRC:
     "            motorF.angle()\n"
     "        ]\n"
     "        if await check_motor():\n"
-    "            print('Jobs done')\n"
     "            print('Elapsed time:',watch.time()/1000,'s')\n"
     "            print(f\"{'Error':>10} {abs(direction_list[0]) - abs(angles[0]):>10.2f} {abs(direction_list[1]) - abs(angles[1]):>10.2f} {abs(direction_list[2]) - abs(angles[2]):>10.2f} {abs(direction_list[3]) - abs(angles[3]):>10.2f} {abs(direction_list[4]) - abs(angles[4]):>10.2f} {abs(direction_list[5]) - abs(angles[5]):>10.2f}\")\n"
     "            print(f\"{'Angle result':>10} {angles[0]:>10.2f} {angles[1]:>10.2f} {angles[2]:>10.2f} {angles[3]:>10.2f} {angles[4]:>10.2f} {angles[5]:>10.2f}\")\n"
+    "            print('Jobs done')\n"
     "            break\n\n"
    
     "        await wait(1000)\n\n"
@@ -202,7 +202,7 @@ class LKRC:
     def __createFile(self,content):
         with open(self.fileName, 'w') as file:
             file.write(content)
-        self.__runFile()     
+        self.__runFile()   
     def __runFile(self):
         print("Press 'q' to run the program, make sure bluetooth on your device is on and the robot is turned on")
         keyboard.wait('q')
@@ -213,4 +213,6 @@ class LKRC:
             time.sleep(0.5)
             if(result.stdout == 'Starting program\n'):
                 break
-
+            
+    
+        
