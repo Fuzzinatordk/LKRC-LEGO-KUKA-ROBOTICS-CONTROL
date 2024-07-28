@@ -86,9 +86,9 @@ class LKRC:
     "def dutyLimitMotors():\n"
     "    motorA.control.limits(torque=150)\n"
     "    motorB.control.limits(torque=135)\n"
-    "    motorC.control.limits(torque=torqueLimit)\n"
+    "    motorC.control.limits(torque=75)\n"
     "    motorD.control.limits(torque=torqueLimit)\n"
-    "    motorE.control.limits(torque=torqueLimit)\n"
+    "    motorE.control.limits(torque=75)\n"
     "    motorF.control.limits(torque=torqueLimit)\n\n"
     
     "async def homingMotors():\n"
@@ -181,7 +181,6 @@ class LKRC:
     "    await multitask(run_motors(),stallMotors(), print_angles(watch))\n\n"
     
     "def main():\n"
-    "    print('Starting program')\n"
     "    homing()\n"
     "    dutyLimitMotors()\n"
     "    watch = StopWatch()\n"
@@ -211,7 +210,7 @@ class LKRC:
         while(True):
             result = self.__terminalCmd(command)
             time.sleep(0.5)
-            if(result.stdout == 'Starting program\n'):
+            if(result.stdout != 0):
                 break
             
     
