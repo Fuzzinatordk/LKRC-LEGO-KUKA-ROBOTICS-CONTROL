@@ -4,7 +4,7 @@ import keyboard, time
 class LKRC:
     def __init__(self):
         self.fileName = "kukaCode.py"
-        self.limitsDegrees = [[-170, 170], [-150, -10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
+        self.limitsDegrees = [[-170, 160], [-350, 350], [10, 145], [-115, 105], [-150, -20], [-350, 350]]
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         self.__DHParams()
     def __DHParams(self):
@@ -26,19 +26,22 @@ class LKRC:
     def DH(self):
         print(self.kuka_robot)
     def FK(self,angles,type):
+        print(angles)
         if len(angles) != 6:
             print('Please provide 6 joint angles')
             return
         self.limits = self.limitsRadian
         if type == 'degrees' or type == 'deg':
-            angles = np.deg2rad(angles)
+            self.limits = self.limitsDegrees
         for i in range(6):
             if angles[i] < self.limits[i][0] or angles[i] > self.limits[i][1]:
                 print(f'Joint {i+1} is out of limits')
                 return
         self.solution = self.kuka_robot.fkine(angles)
-        print(f'End-effector pose: {self.solution}')
-        angles = angles.tolist()
+        print(f'End-effector pose: \n {self.solution}')
+        if type == 'rad' or type == 'radians':
+            angles = np.rad2deg(angles)
+        print(angles)
         self.writeFile(angles)
         
           
@@ -86,14 +89,14 @@ class LKRC:
     "def dutyLimitMotors():\n"
     "    motorA.control.limits(torque=150)\n"
     "    motorB.control.limits(torque=135)\n"
-    "    motorC.control.limits(torque=75)\n"
+    "    motorC.control.limits(torque=torqueLimit)\n"
     "    motorD.control.limits(torque=torqueLimit)\n"
-    "    motorE.control.limits(torque=75)\n"
+    "    motorE.control.limits(torque=torqueLimit)\n"
     "    motorF.control.limits(torque=torqueLimit)\n\n"
     
     "async def homingMotors():\n"
     "    await multitask(\n"
-    "        #motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
+    "        motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=70),\n"
     "        motorB.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
     "        motorC.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
     "        motorD.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
@@ -101,7 +104,7 @@ class LKRC:
     "    )\n\n"
     
     "def setHomingLimits():\n"
-    "    for motor, limit in zip([motorA,motorE,motorC,motorB,motorD,motorF], jointLimits):\n"
+    "    for motor, limit in zip([motorA, motorB, motorC, motorD, motorE, motorF], jointLimits):\n"
     "        motor.reset_angle(limit[0])\n\n"
     
     "def homing():\n"
@@ -181,7 +184,9 @@ class LKRC:
     "    await multitask(run_motors(),stallMotors(), print_angles(watch))\n\n"
     
     "def main():\n"
+    "    print('Homing')\n"
     "    homing()\n"
+    "    print('Starting program')\n"
     "    dutyLimitMotors()\n"
     "    watch = StopWatch()\n"
     "    run_task(driveMotors(watch))\n"
@@ -210,7 +215,7 @@ class LKRC:
         while(True):
             result = self.__terminalCmd(command)
             time.sleep(0.5)
-            if(result.stdout != 0):
+            if(result.stdout == 'Homing\n'):
                 break
             
     
