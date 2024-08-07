@@ -4,7 +4,7 @@ import keyboard, time
 class LKRC:
     def __init__(self):
         self.fileName = "kukaCode.py"
-        self.limitsDegrees = [[-170, 160], [-350, 350], [10, 145], [-115, 105], [-150, -20], [-350, 350]]
+        self.limitsDegrees = [[-170, 170], [-150,-10], [10, 155], [-115, 105], [-150, -20], [-350, 350]]
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         self.__DHParams()
     def __DHParams(self):
