@@ -4,8 +4,9 @@ import keyboard, time
 class LKRC:
     def __init__(self):
         self.fileName = "kukaCode.py"
-        self.limitsDegrees = [[-170, 170], [-150, -10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
+        self.limitsDegrees = [[-170, 170], [-150,0], [10, 145], [-350, 350], [-115, 105], [-350, 350]]
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
+        self.homingState = False    
         self.__DHParams()
     def __DHParams(self):
         self.dh_params = [
@@ -22,27 +23,38 @@ class LKRC:
             self.links.append(self.link)
         self.kuka_robot = rtb.DHRobot(self.links, name='KUKA 6-DOF')
         limitArray = np.ndarray(shape=(2,6),dtype=float, order='F', buffer=self.limitsRadian)
+        self.q0 = np.zeros(6)
+        for i in range(6):
+            self.q0[i] = (self.limitsRadian[i][0])
+        q0array = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
+        self.kuka_robot.q0 = q0array
         self.kuka_robot.qlim = limitArray
+        self.naturalPose = [0,150/2]
     def DH(self):
         print(self.kuka_robot)
+    def getJacob(self):
+        J = self.kuka_robot.jacob0(self.q0)
+        print(J)
     def FK(self,angles,type):
         if len(angles) != 6:
             print('Please provide 6 joint angles')
             return
-        self.limits = self.limitsRadian
-        if type == 'degrees' or type == 'deg':
-            angles = np.deg2rad(angles)
+        self.limits = self.limitsDegrees
+        if type == 'radian' or type == 'rad':
+            angles = np.rad2deg(angles)
+            angles = angles.tolist()
         for i in range(6):
             if angles[i] < self.limits[i][0] or angles[i] > self.limits[i][1]:
                 print(f'Joint {i+1} is out of limits')
                 return
         self.solution = self.kuka_robot.fkine(angles)
         print(f'End-effector pose: {self.solution}')
-        angles = angles.tolist()
+
         self.writeFile(angles)
         
           
     def IK(self,pose,type):
+        
         if len(pose) != 6:
             print('Please provide 6 pose values')
             return
@@ -54,14 +66,16 @@ class LKRC:
         self.solution = self.kuka_robot.ikine_GN(T,joint_limits=True)
         if self.solution.success:
            print(f'Solution found: {self.solution.q}')
-        else:
+        else:                       
             print('No solutions found for the given pose.')
             return
-        
         self.sol_lists = [0] * len(self.solution.q)
         self.sol_lists = self.solution.q * 180 / np.pi
         self.sol_lists = self.sol_lists.tolist()
         self.writeFile(self.sol_lists)
+    def randomPose(self):
+        randomQ = np.random.uniform(self.limitsRadian[:,0],self.limitsRadian[:,1])
+        self.FK(randomQ,'rad')
     def writeFile(self, sols):
 
         content = (
@@ -71,14 +85,16 @@ class LKRC:
     "from pybricks.tools import wait, StopWatch, multitask, run_task\n\n"
     
     "hub = InventorHub()\n"
-    "motorA = Motor(Port.A, reset_angle=False, gears=[1,37])\n"
-    "motorB = Motor(Port.B, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,21])\n"
-    "motorC = Motor(Port.C, reset_angle=False, gears=[1,52])\n"
-    "motorD = Motor(Port.D, reset_angle=False, gears=[1,22])\n"
-    "motorE = Motor(Port.E, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,67])\n"
-    "motorF = Motor(Port.F, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,12])\n"
+    "motorA = Motor(Port.A, reset_angle=True, gears=[1,37])\n"
+    "motorB = Motor(Port.B, Direction.COUNTERCLOCKWISE, reset_angle=True, gears=[1,21])\n"
+    "motorB.control.stall.tolerances(time=0.1)"
+    "motorC = Motor(Port.C, reset_angle=True, gears=[1,52])\n"
+    "motorD = Motor(Port.D, reset_angle=True, gears=[1,22])\n"
+    "motorE = Motor(Port.E, Direction.COUNTERCLOCKWISE, reset_angle=True, gears=[1,67])\n"
+    "motorF = Motor(Port.F, Direction.COUNTERCLOCKWISE, reset_angle=True, gears=[1,12])\n"
     f"jointLimits = {self.limitsDegrees}\n"
     f"direction_list = {sols}\n"
+    f"homingState = {self.homingState}\n"
     "motorSpeed = 500\n"
     "torqueLimit = 100\n"
     "torqueLimitWrist = 30\n\n"
@@ -87,17 +103,18 @@ class LKRC:
     "    motorA.control.limits(torque=150)\n"
     "    motorB.control.limits(torque=135)\n"
     "    motorC.control.limits(torque=75)\n"
-    "    motorD.control.limits(torque=torqueLimit)\n"
+    "    motorD.control.limits(torque=75)\n"
     "    motorE.control.limits(torque=75)\n"
     "    motorF.control.limits(torque=torqueLimit)\n\n"
     
     "async def homingMotors():\n"
     "    await multitask(\n"
-    "        #motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
-    "        motorB.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
-    "        motorC.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
-    "        motorD.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
-    "        motorE.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35)\n"
+    "        motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
+    "        motorB.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=45),\n"
+    "        motorC.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=45),\n"
+    "        #motorD.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
+    "        motorE.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=25),\n"
+    "        motorF.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=30)\n"
     "    )\n\n"
     
     "def setHomingLimits():\n"
@@ -107,6 +124,7 @@ class LKRC:
     "def homing():\n"
     "    run_task(homingMotors())\n"
     "    setHomingLimits()\n"
+    "    run_task(homingMo)\n"
     "    return True\n\n"
     
     "async def check_motor():\n"
@@ -124,6 +142,8 @@ class LKRC:
     "            angleCalc = abs(angleCalc) + dir\n"
     "        else:\n"
     "            angleCalc = dir - angleCalc\n"
+    "    else:\n"
+    "        angleCalc = abs(angleCalc) \n"
     "    return angleCalc\n\n"
     "async def stallMotors():\n"
     "    if motorA.stalled():\n"
@@ -145,14 +165,14 @@ class LKRC:
     "        motorF.stop()\n\n"
     "        print('Motor F stalled at',motorF.angle())\n\n"
         
-    "async def run_motors():\n"
+    "async def run_motors(list):\n"
     "    await multitask(\n"
-    "        motorA.run_angle(motorSpeed, calcDirection(direction_list[0], motorA), Stop.COAST_SMART),\n"
-    "        motorB.run_angle(motorSpeed, calcDirection(direction_list[3], motorB), Stop.COAST_SMART),\n"
-    "        motorC.run_angle(motorSpeed, calcDirection(direction_list[2], motorC), Stop.COAST_SMART),\n"
-    "        motorD.run_angle(motorSpeed, calcDirection(direction_list[4], motorD), Stop.COAST_SMART),\n"
-    "        motorE.run_angle(motorSpeed, calcDirection(direction_list[1], motorE), Stop.COAST_SMART),\n"
-    "        motorF.run_angle(motorSpeed, calcDirection(direction_list[5], motorF), Stop.COAST_SMART)\n"
+    "        motorA.run_angle(motorSpeed, calcDirection(list[0], motorA), Stop.COAST_SMART),\n"
+    "        motorB.run_angle(motorSpeed, calcDirection(list[3], motorB), Stop.COAST_SMART),\n"
+    "        motorC.run_angle(motorSpeed, calcDirection(list[2], motorC), Stop.COAST_SMART),\n"
+    "        motorD.run_angle(motorSpeed, calcDirection(list[4], motorD), Stop.COAST_SMART),\n"
+    "        motorE.run_angle(motorSpeed, calcDirection(list[1], motorE), Stop.COAST_SMART),\n"
+    "        motorF.run_angle(motorSpeed, calcDirection(list[5], motorF), Stop.COAST_SMART)\n"
     "    )\n\n"
     
     "async def print_angles(watch):\n"
@@ -178,11 +198,16 @@ class LKRC:
     "        print(f\"{'Current angle':>10} {angles[0]:>10.2f} {angles[1]:>10.2f} {angles[2]:>10.2f} {angles[3]:>10.2f} {angles[4]:>10.2f} {angles[5]:>10.2f}\")\n"
     
     "async def driveMotors(watch):\n"
-    "    await multitask(run_motors(),stallMotors(), print_angles(watch))\n\n"
+    "    await multitask(run_motors(direction_list),stallMotors(), print_angles(watch))\n\n"
     
     "def main():\n"
-    "    homing()\n"
-    "    dutyLimitMotors()\n"
+    "    if homingState == False:\n"
+    "       homing()\n"
+    "       dutyLimitMotors()\n"
+    "       naturalPose_list = []\n"
+    "       for i in range(6):\n"
+    "           naturalPose_list.append(jointlimits[i][1] - jointLimits[i][0])\n"
+    "       await multitask(run_motors(naturalPose_list))\n"
     "    watch = StopWatch()\n"
     "    run_task(driveMotors(watch))\n"
     "    watch.reset()\n\n"
@@ -191,9 +216,10 @@ class LKRC:
         )
         print("Writing file...")
         self.__createFile(content)
-    def limits(self):
+    def limitsDeg(self):
         print(self.limitsDegrees)
-
+    def limitsRad(self):
+        print(self.limitsRadian)
     def __terminalCmd(self, command):
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         print(result.stdout)
@@ -212,6 +238,8 @@ class LKRC:
             time.sleep(0.5)
             if(result.stdout != 0):
                 break
+        if self.homingState == False:
+            self.homingState = True
             
     
         
