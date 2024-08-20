@@ -82,7 +82,7 @@ class robotMovement:
         self.writeFile(angles)
         
           
-    def IK(self,pose,type,plot=False,PTP=False,PYP=False):
+    def IK(self,pose,type,plot=False,PTP=False):
         # Inverse kinematics for the robot
         if len(pose) != 6:
             print('Please provide 6 pose values')
@@ -95,10 +95,12 @@ class robotMovement:
         # Calculating the transformation matrix
         T = SE3.Trans(pose[0], pose[1], pose[2]) * SE3.RPY(pose[3], pose[4], pose[5])
         # Calculating the inverse kinematics
-        self.solution = self.kuka_robot.ikine_GN(T,joint_limits=True)
+        self.solution = self.kuka_robot.ikine_GN(T,joint_limits=True,slimit=100,ilimit=100)
         if self.solution.success:
+           print(self.solution.residual)
            print(f'Solution found: {self.solution.q}')
         else:                       
+            print(self.solution.reason)
             print('No solutions found for the given pose.')
             return
         # Stating new q0 for the robot to start from
@@ -120,7 +122,7 @@ class robotMovement:
     def randomPose(self, plot=False,PTP=False):
         # Generating random joint angles for the robot
         randomQ = np.random.uniform(self.limitsRadian[:,0],self.limitsRadian[:,1])
-        self.FK(randomQ,'rad',plot,PTP=PTP)
+        self.FK(randomQ,'rad',plot,PTP)
     def writeFile(self, sols):
         # Writing the python file for the robot
         content = (
