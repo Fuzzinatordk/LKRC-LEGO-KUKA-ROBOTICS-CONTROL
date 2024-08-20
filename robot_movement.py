@@ -277,9 +277,9 @@ class robotMovement:
         self.__runFile()   
     def __runFile(self):
         # Running the python file
-        if self.homingState == False:
-            print("Press 'q' to run the program, make sure bluetooth on your device is on and the robot is turned on")
-            keyboard.wait('q')
+        #if self.homingState == False:
+            #print("Press 'q' to run the program, make sure bluetooth on your device is on and the robot is turned on")
+            #keyboard.wait('q')
         print("Running program...")
         command = f'pipx run pybricksdev run ble {self.fileName}'
         while(True):
