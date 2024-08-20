@@ -2,13 +2,21 @@ import sys, subprocess,roboticstoolbox as rtb, numpy as np
 from spatialmath import SE3
 import keyboard, time
 class LKRC:
+    # Class constructor
     def __init__(self):
+        # File name for the generated python file
         self.fileName = "kukaCode.py"
+        # Limits for the robot joints in degrees
         self.limitsDegrees = [[-170, 170], [-150,-20], [10, 130], [-350, 350], [-115, 105], [-350, 350]]
+        # Limits for the robot joints in radians
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
-        self.homingState = False    
+        # Homing state for the robot
+        self.homingState = False 
+        # DH parameters for the robot   
         self.__DHParams()
+    # Private method to set the DH parameters for the robot
     def __DHParams(self):
+        # DH parameters for the robot
         self.dh_params = [
             [-np.pi/2, 16, 132, 0],                           
             [0,112, 0, 0],            
@@ -17,67 +25,104 @@ class LKRC:
             [-np.pi/2, 0, 0, 0],                    
             [0, 0, 44,np.pi]                 
         ]
+        # Creating the robot
         self.links = []
+        # Creating the links for the robot
         for param in self.dh_params:
+            # Creating the link
             self.link = rtb.RevoluteDH(d=param[2], a=param[1], alpha=param[0], offset=param[3])
+            # Appending the link to the links list
             self.links.append(self.link)
         self.kuka_robot = rtb.DHRobot(self.links, name='KUKA 6-DOF')
+        # Setting the limits for the robot
         limitArray = np.ndarray(shape=(2,6),dtype=float, order='F', buffer=self.limitsRadian)
         self.q0 = np.zeros(6)
         for i in range(6):
             self.q0[i] = (self.limitsRadian[i][0])
-        q0array = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
-        self.kuka_robot.q0 = q0array
+        # Setting the initial joint angles for the robot
+        q0home = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
+        self.kuka_robot.q0 = q0home
         self.kuka_robot.qlim = limitArray
-        self.naturalPose = [0,150/2]
     def DH(self):
+        # Displaying the DH parameters for the robot
         print(self.kuka_robot)
     def getJacob(self):
+        # Getting the Jacobian matrix for the robot
         J = self.kuka_robot.jacob0(self.q0)
         print(J)
-    def FK(self,angles,type):
+    def FK(self,angles,type,plot=False,PTP=False):
+        # Forward kinematics for the robot
+        # Checking if the number of angles provided is correct
         if len(angles) != 6:
             print('Please provide 6 joint angles')
             return
+        # Checking if the angles are in degrees
         self.limits = self.limitsDegrees
         if type == 'radian' or type == 'rad':
             angles = np.rad2deg(angles)
             angles = angles.tolist()
+        # Checking if the angles are within the limits
         for i in range(6):
             if angles[i] < self.limits[i][0] or angles[i] > self.limits[i][1]:
                 print(f'Joint {i+1} is out of limits')
                 return
+        # Calculating the forward kinematics
         self.solution = self.kuka_robot.fkine(angles)
+        # Stating new q0 for the robot to start from 
+        self.kuka_robot.q0 = angles
+        # Displaying the end-effector pose
         print(f'End-effector pose: {self.solution}')
-
+        if plot:
+            self.kuka_robot.plot(angles,block=True)
+        if PTP:
+            # PTP motion
+            traj = rtb.jtraj(self.kuka_robot.q, angles, 100)
+            rtb.xplot(traj.q,block=True)
+        # Writing the file
         self.writeFile(angles)
         
           
-    def IK(self,pose,type):
-        
+    def IK(self,pose,type,plot=False,PTP=False,PYP=False):
+        # Inverse kinematics for the robot
         if len(pose) != 6:
             print('Please provide 6 pose values')
             return
+        # Checking if the angles are in degrees
         if type == 'degrees' or type == 'deg':
             pose[3] = np.deg2rad(pose[3])
             pose[4] = np.deg2rad(pose[4])
             pose[5] = np.deg2rad(pose[5])
+        # Calculating the transformation matrix
         T = SE3.Trans(pose[0], pose[1], pose[2]) * SE3.RPY(pose[3], pose[4], pose[5])
+        # Calculating the inverse kinematics
         self.solution = self.kuka_robot.ikine_GN(T,joint_limits=True)
         if self.solution.success:
            print(f'Solution found: {self.solution.q}')
         else:                       
             print('No solutions found for the given pose.')
             return
+        # Stating new q0 for the robot to start from
+        self.kuka_robot.q0 = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.solution.q)
+        # Displaying the joint angles
         self.sol_lists = [0] * len(self.solution.q)
         self.sol_lists = self.solution.q * 180 / np.pi
         self.sol_lists = self.sol_lists.tolist()
+        # Writing the file
+        if plot:
+            # Plotting the robot
+            self.kuka_robot.plot(self.solution.q,block=True)
+        if PTP:
+            # PTP motion
+            traj = rtb.jtraj(self.kuka_robot.q, self.solution.q, 100)
+            rtb.xplot(traj.q,block=True)
+            
         self.writeFile(self.sol_lists)
-    def randomPose(self):
+    def randomPose(self, plot=False,PTP=False):
+        # Generating random joint angles for the robot
         randomQ = np.random.uniform(self.limitsRadian[:,0],self.limitsRadian[:,1])
-        self.FK(randomQ,'rad')
+        self.FK(randomQ,'rad',plot,PTP=PTP)
     def writeFile(self, sols):
-
+        # Writing the python file for the robot
         content = (
     "from pybricks.hubs import InventorHub\n"
     "from pybricks.pupdevices import Motor\n"
@@ -201,7 +246,7 @@ class LKRC:
     "def main():\n"
     "    if homingState == False:\n"
     "       homing()\n"
-    "       dutyLimitMotors()\n"
+    "    dutyLimitMotors()\n"
     "    watch = StopWatch()\n"
     "    run_task(driveMotors(watch))\n"
     "    watch.reset()\n\n"
@@ -209,25 +254,30 @@ class LKRC:
     "main()\n"
     "hub.speaker.beep(1000,500)\n"
         )
+        # Writing the file
         print("Writing file...")
         self.__createFile(content)
     def limitsDeg(self):
+        # Displaying the limits for the robot in degrees
         print(self.limitsDegrees)
     def limitsRad(self):
+        # Displaying the limits for the robot in radians
         print(self.limitsRadian)
     def __terminalCmd(self, command):
+        # Running the terminal command
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         print(result.stdout)
         return result
     def __createFile(self,content):
+        # Creating the python file
         with open(self.fileName, 'w') as file:
             file.write(content)
         self.__runFile()   
     def __runFile(self):
+        # Running the python file
         if self.homingState == False:
             print("Press 'q' to run the program, make sure bluetooth on your device is on and the robot is turned on")
             keyboard.wait('q')
-        print("NOT RESPECTING CHANGES")
         print("Running program...")
         command = f'pipx run pybricksdev run ble {self.fileName}'
         while(True):
@@ -237,6 +287,5 @@ class LKRC:
                 break
         if self.homingState == False:
             self.homingState = True
-            
     
         
