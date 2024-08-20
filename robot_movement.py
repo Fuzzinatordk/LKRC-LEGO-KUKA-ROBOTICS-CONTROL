@@ -1,7 +1,7 @@
 import sys, subprocess,roboticstoolbox as rtb, numpy as np
 from spatialmath import SE3
 import keyboard, time
-class LKRC:
+class robotMovement:
     # Class constructor
     def __init__(self):
         # File name for the generated python file
