@@ -2,15 +2,15 @@ import tkinter as tk
 from tkinter import ttk
 import numpy as np
 import threading
-import signal
-import sys
+import queue
 from robot_movement import robotMovement  # Assuming your class is in a file named robot_movement.py
 
 class RobotMovementGUI:
     def __init__(self, root):
         self.root = root
         self.robot = robotMovement()
-        self._stop_event = threading.Event()  # Event to signal threads to stop
+        self.queue = queue.Queue() 
+        self._stop_event = threading.Event()
 
         # Setting up the main frame
         self.frame = ttk.Frame(root, padding="10")
@@ -77,10 +77,10 @@ class RobotMovementGUI:
         # Exit Button
         self.exit_button = ttk.Button(self.frame, text="Exit", command=self.exit_program)
         self.exit_button.grid(row=15, column=0, columnspan=2, sticky=(tk.W, tk.E))
-
+        self.root.after(100, self.process_queue)
         # Handle window close event
         root.protocol("WM_DELETE_WINDOW", self.exit_program)
-
+        
     def get_selected_units(self, is_fk):
         return self.fk_units.get() if is_fk else self.ik_units.get()
     

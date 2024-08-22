@@ -7,7 +7,7 @@ class robotMovement:
         # File name for the generated python file
         self.fileName = "kukaCode.py"
         # Limits for the robot joints in degrees
-        self.limitsDegrees = [[-170, 170], [-150,-20], [10, 130], [-350, 350], [-115, 105], [-350, 350]]
+        self.limitsDegrees = [[-170, 170], [-150,-40], [10, 130], [-350, 350], [-115, 115], [-350, 350]]
         # Limits for the robot joints in radians
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         # Homing state for the robot
@@ -40,9 +40,29 @@ class robotMovement:
         for i in range(6):
             self.q0[i] = (self.limitsRadian[i][0])
         # Setting the initial joint angles for the robot
-        q0home = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
-        self.kuka_robot.q0 = q0home
+        self.q0home = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
+        self.kuka_robot.q = self.q0home
         self.kuka_robot.qlim = limitArray
+    def FK_solution(self,angles,type):
+        # Checking if the number of angles provided is correct
+        if len(angles) != 6:
+            print('Please provide 6 joint angles')
+            return
+        # Checking if the angles are in degrees
+        self.limits = self.limitsDegrees
+        if type == 'radian' or type == 'rad':
+            angles = np.rad2deg(angles)
+            angles = angles.tolist()
+        # Checking if the angles are within the limits
+        for i in range(6):
+            if angles[i] < self.limits[i][0] or angles[i] > self.limits[i][1]:
+                print(f'Joint {i+1} is out of limits')
+                return
+        # Calculating the forward kinematics
+        self.solution = self.kuka_robot.fkine(angles)
+        # Displaying the end-effector pose
+        print(f'End-effector pose: {self.solution}')
+        return self.solution
     def DH(self):
         # Displaying the DH parameters for the robot
         print(self.kuka_robot)
@@ -68,16 +88,18 @@ class robotMovement:
                 return
         # Calculating the forward kinematics
         self.solution = self.kuka_robot.fkine(angles)
-        # Stating new q0 for the robot to start from 
-        self.kuka_robot.q0 = angles
         # Displaying the end-effector pose
         print(f'End-effector pose: {self.solution}')
         if plot:
+            q0old = self.kuka_robot.q.copy()
             self.kuka_robot.plot(angles,block=True)
+            self.kuka_robot.q = q0old
         if PTP:
             # PTP motion
             traj = rtb.jtraj(self.kuka_robot.q, angles, 100)
             rtb.xplot(traj.q,block=True)
+        #Stating new q0 for the robot to start from 
+        self.kuka_robot.q = angles
         # Writing the file
         self.writeFile(angles)
         
@@ -103,8 +125,6 @@ class robotMovement:
             print(self.solution.reason)
             print('No solutions found for the given pose.')
             return
-        # Stating new q0 for the robot to start from
-        self.kuka_robot.q0 = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.solution.q)
         # Displaying the joint angles
         self.sol_lists = [0] * len(self.solution.q)
         self.sol_lists = self.solution.q * 180 / np.pi
@@ -117,7 +137,8 @@ class robotMovement:
             # PTP motion
             traj = rtb.jtraj(self.kuka_robot.q, self.solution.q, 100)
             rtb.xplot(traj.q,block=True)
-            
+        # Stating new q0 for the robot to start from
+        self.kuka_robot.q = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.solution.q)
         self.writeFile(self.sol_lists)
     def randomPose(self, plot=False,PTP=False):
         # Generating random joint angles for the robot
@@ -141,7 +162,6 @@ class robotMovement:
     f"jointLimits = {self.limitsDegrees}\n"
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
-    "naturalPoseAfterHoming = [motorA.angle(),motorB.angle(),99,motorD.angle(),-140,motorF.angle()]\n"
     "motorSpeed = 500\n"
     "torqueLimit = 80\n"
     "torqueLimitWrist = 30\n\n"
