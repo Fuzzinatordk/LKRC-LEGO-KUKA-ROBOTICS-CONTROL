@@ -175,7 +175,7 @@ class robotMovement:
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
     "motorSpeed = 500\n"
-    "torqueLimit = 80\n"
+    "torqueLimit = 90\n"
     "torqueLimitWrist = 30\n\n"
     
     "def dutyLimitMotors():\n"
