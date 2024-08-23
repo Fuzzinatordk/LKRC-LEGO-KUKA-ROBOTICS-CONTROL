@@ -77,10 +77,38 @@ class RobotMovementGUI:
         # Exit Button
         self.exit_button = ttk.Button(self.frame, text="Exit", command=self.exit_program)
         self.exit_button.grid(row=15, column=0, columnspan=2, sticky=(tk.W, tk.E))
+        
+        # Periodically process the queue
         self.root.after(100, self.process_queue)
+        
         # Handle window close event
         root.protocol("WM_DELETE_WINDOW", self.exit_program)
         
+    def process_queue(self):
+        while not self.queue.empty():
+            func, args = self.queue.get()
+            func(*args)
+        self.root.after(100, self.process_queue)
+    
+    def thread_function(self, func):
+        # Clear the stop event before starting a new thread
+        self._stop_event.clear()
+        thread = threading.Thread(target=self.worker_thread, args=(func,))
+        thread.daemon = True  # Mark thread as daemon to automatically close with the program
+        thread.start()
+    
+    def worker_thread(self, func):
+        try:
+            result = func()  # Perform the function's main logic
+            self.queue.put((self.handle_result, (result,)))
+        except Exception as e:
+            self.queue.put((self.show_error_gui, (str(e),)))
+
+    def exit_program(self):
+        self._stop_event.set()  # Signal all threads to stop
+        self.root.quit()  # Stop the Tkinter main loop
+        self.root.destroy()  # Destroy all Tkinter widgets
+
     def get_selected_units(self, is_fk):
         return self.fk_units.get() if is_fk else self.ik_units.get()
     
@@ -90,64 +118,37 @@ class RobotMovementGUI:
         return angles
     
     def calculate_fk(self):
-        if self._stop_event.is_set():
-            return
         angles_str = self.fk_angles_entry.get()
-        try:
-            angles = [float(a) for a in angles_str.split(',')]
-            if len(angles) != 6:
-                raise ValueError("Please provide exactly 6 angles.")
-            units = self.get_selected_units(is_fk=True)
-            angles = self.convert_angles(angles, units)
-            plot = self.fk_plot_var.get()
-            ptp = self.fk_ptp_var.get()
-            self.robot.FK(angles, "rad" if units == "radians" else "deg", plot=plot, PTP=ptp)
-        except ValueError as e:
-            self.show_error(str(e))
+        angles = [float(a) for a in angles_str.split(',')]
+        if len(angles) != 6:
+            raise ValueError("Please provide exactly 6 angles.")
+        units = self.get_selected_units(is_fk=True)
+        angles = self.convert_angles(angles, units)
+        plot = self.fk_plot_var.get()
+        ptp = self.fk_ptp_var.get()
+        return self.robot.FK(angles, "rad" if units == "radians" else "deg", plot=plot, PTP=ptp)
 
     def calculate_ik(self):
-        if self._stop_event.is_set():
-            return
         pose_str = self.ik_pose_entry.get()
-        try:
-            pose = [float(p) for p in pose_str.split(',')]
-            print(pose)
-            if len(pose) != 6:
-                raise ValueError("Please provide exactly 6 pose values.")
-            units = self.get_selected_units(is_fk=False)
-            pose_angles = self.convert_angles(pose[3:], units)
-            pose = pose[:3] + pose_angles
-            plot = self.ik_plot_var.get()
-            ptp = self.ik_ptp_var.get()
-            self.robot.IK(pose, "rad" if units == "radians" else "deg", plot=plot, PTP=ptp)
-        except ValueError as e:
-            self.show_error(str(e))
+        pose = [float(p) for p in pose_str.split(',')]
+        if len(pose) != 6:
+            raise ValueError("Please provide exactly 6 pose values.")
+        units = self.get_selected_units(is_fk=False)
+        pose_angles = self.convert_angles(pose[3:], units)
+        pose = pose[:3] + pose_angles
+        plot = self.ik_plot_var.get()
+        ptp = self.ik_ptp_var.get()
+        return self.robot.IK(pose, "rad" if units == "radians" else "deg", plot=plot, PTP=ptp)
     
     def run_random_pose(self):
-        if self._stop_event.is_set():
-            return
         plot = self.random_plot_var.get()
         ptp = self.random_ptp_var.get()
-        self.robot.randomPose(plot=plot, PTP=ptp)
+        return self.robot.randomPose(plot=plot, PTP=ptp)
     
-    def thread_function(self, func):
-        # Set the stop event to False before starting a new thread
-        self._stop_event.clear()
-        threading.Thread(target=func).start()
-    
-    def exit_program(self):
-        # Signal the threads to stop
-        self._stop_event.set()
-        
-        # Ensure all threads have finished
-        self.root.quit()
-        self.root.destroy()
-        
-        # Optionally, add a short delay to allow threads to finish
-        # time.sleep(1)
-        # os._exit(0)  # Use this to forcefully exit if necessary
+    def handle_result(self, result):
+        pass  # Placeholder for processing the result in the main thread
 
-    def show_error(self, message):
+    def show_error_gui(self, message):
         error_window = tk.Toplevel(self.frame)
         error_window.title("Error")
         ttk.Label(error_window, text=message).pack(padx=10, pady=10)

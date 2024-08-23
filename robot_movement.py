@@ -7,7 +7,7 @@ class robotMovement:
         # File name for the generated python file
         self.fileName = "kukaCode.py"
         # Limits for the robot joints in degrees
-        self.limitsDegrees = [[-170, 170], [-150,-40], [10, 130], [-350, 350], [-115, 115], [-350, 350]]
+        self.limitsDegrees = [[-170, 170], [-150,-10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
         # Limits for the robot joints in radians
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         # Homing state for the robot
@@ -91,13 +91,11 @@ class robotMovement:
         # Displaying the end-effector pose
         print(f'End-effector pose: {self.solution}')
         if plot:
-            q0old = self.kuka_robot.q.copy()
-            self.kuka_robot.plot(angles,block=True)
-            self.kuka_robot.q = q0old
+            # Plotting the robot
+            self.posePlot(angles)   
         if PTP:
             # PTP motion
-            traj = rtb.jtraj(self.kuka_robot.q, angles, 100)
-            rtb.xplot(traj.q,block=True)
+            self.PTPplot(angles)
         #Stating new q0 for the robot to start from 
         self.kuka_robot.q = angles
         # Writing the file
@@ -132,11 +130,10 @@ class robotMovement:
         # Writing the file
         if plot:
             # Plotting the robot
-            self.kuka_robot.plot(self.solution.q,block=True)
+            self.posePlot(self.solution.q)
         if PTP:
             # PTP motion
-            traj = rtb.jtraj(self.kuka_robot.q, self.solution.q, 100)
-            rtb.xplot(traj.q,block=True)
+            self.PTPplot(self.solution.q)
         # Stating new q0 for the robot to start from
         self.kuka_robot.q = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.solution.q)
         self.writeFile(self.sol_lists)
@@ -144,6 +141,21 @@ class robotMovement:
         # Generating random joint angles for the robot
         randomQ = np.random.uniform(self.limitsRadian[:,0],self.limitsRadian[:,1])
         self.FK(randomQ,'rad',plot,PTP)
+    def limitsDeg(self):
+        # Displaying the limits for the robot in degrees
+        print(self.limitsDegrees)
+    def limitsRad(self):
+        # Displaying the limits for the robot in radians
+        print(self.limitsRadian)
+    def PTPplot(self,angles):
+        # PTP motion for the robot
+        traj = rtb.jtraj(self.kuka_robot.q, angles, 100)
+        rtb.xplot(traj.q,block=True)
+    def posePlot(self,pose):
+        # Plotting the robot
+        q0old = self.kuka_robot.q.copy()
+        self.kuka_robot.plot(pose,block=True)
+        self.kuka_robot.q = q0old
     def writeFile(self, sols):
         # Writing the python file for the robot
         content = (
@@ -178,7 +190,6 @@ class robotMovement:
     "    await multitask(\n"
     "        motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=40),\n"
     "        motorB.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
-    "        motorC.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=45),\n"
     "        motorD.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
     "        motorE.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35)\n"
     "    )\n\n"
@@ -186,9 +197,13 @@ class robotMovement:
     "def setHomingLimits():\n"
     "    for motor, limit in zip([motorA,motorE,motorC,motorB,motorD], jointLimits):\n"
     "        motor.reset_angle(limit[0])\n\n"
+    "        print(motor.angle())\n\n"
+
     
     "def homing():\n"
     "    run_task(homingMotors())\n"
+    "    wait(3000)\n"
+    "    motorC.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=45),\n"
     "    setHomingLimits()\n"
     "    return True\n\n"
     
@@ -279,12 +294,6 @@ class robotMovement:
         # Writing the file
         print("Writing file...")
         self.__createFile(content)
-    def limitsDeg(self):
-        # Displaying the limits for the robot in degrees
-        print(self.limitsDegrees)
-    def limitsRad(self):
-        # Displaying the limits for the robot in radians
-        print(self.limitsRadian)
     def __terminalCmd(self, command):
         # Running the terminal command
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
