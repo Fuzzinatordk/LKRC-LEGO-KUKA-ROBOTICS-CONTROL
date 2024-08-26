@@ -7,7 +7,9 @@ class robotMovement:
         # File name for the generated python file
         self.fileName = "kukaCode.py"
         # Limits for the robot joints in degrees
-        self.limitsDegrees = [[-170, 170], [-150,-10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
+        self.limitsDegrees = [[-170, 170], [-150,-25], [40, 155], [-350, 335], [-115, 100], [-350, 335]]
+        # Limits for robot
+        self.limitsDegreesRobot = [-170,-150,155,-350,-115,-350]
         # Limits for the robot joints in radians
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         # Homing state for the robot
@@ -38,6 +40,9 @@ class robotMovement:
         limitArray = np.ndarray(shape=(2,6),dtype=float, order='F', buffer=self.limitsRadian)
         self.q0 = np.zeros(6)
         for i in range(6):
+            if i == 2:
+                self.q0[i] = (self.limitsRadian[i][1])
+                continue
             self.q0[i] = (self.limitsRadian[i][0])
         # Setting the initial joint angles for the robot
         self.q0home = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
@@ -77,9 +82,9 @@ class robotMovement:
             print('Please provide 6 joint angles')
             return
         # Checking if the angles are in degrees
-        self.limits = self.limitsDegrees
-        if type == 'radian' or type == 'rad':
-            angles = np.rad2deg(angles)
+        self.limits = self.limitsRadian
+        if type == 'deg' or type == 'degrees':
+            angles = np.deg2rad(angles)
             angles = angles.tolist()
         # Checking if the angles are within the limits
         for i in range(6):
@@ -97,7 +102,9 @@ class robotMovement:
             # PTP motion
             self.PTPplot(angles)
         #Stating new q0 for the robot to start from 
-        self.kuka_robot.q = angles
+        self.kuka_robot.q = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=angles)
+        angles = np.rad2deg(angles)
+        angles = angles.tolist()
         # Writing the file
         self.writeFile(angles)
         
@@ -154,8 +161,10 @@ class robotMovement:
     def posePlot(self,pose):
         # Plotting the robot
         q0old = self.kuka_robot.q.copy()
-        self.kuka_robot.plot(pose,block=True)
+        traj = rtb.jtraj(self.kuka_robot.q,pose, 100)
+        self.kuka_robot.plot(traj.q,block=True,backend='pyplot', eeframe=True,dt=0.05)
         self.kuka_robot.q = q0old
+        
     def writeFile(self, sols):
         # Writing the python file for the robot
         content = (
@@ -165,53 +174,60 @@ class robotMovement:
     "from pybricks.tools import wait, StopWatch, multitask, run_task\n\n"
     
     "hub = InventorHub()\n"
-    "motorA = Motor(Port.A, reset_angle=False, gears=[1,37])\n"
-    "motorB = Motor(Port.B, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,21])\n"
-    "motorC = Motor(Port.C, reset_angle=False, gears=[1,52])\n"
-    "motorD = Motor(Port.D, reset_angle=False, gears=[1,22])\n"
-    "motorE = Motor(Port.E, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,67])\n"
-    "motorF = Motor(Port.F, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,12])\n"
-    f"jointLimits = {self.limitsDegrees}\n"
+    "Joint1 = Motor(Port.A, reset_angle=False, gears=[1,37])\n"
+    "Joint2 = Motor(Port.E, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,67])\n"
+    "Joint3 = Motor(Port.C, reset_angle=False, gears=[1,52])\n"
+    "Joint4 = Motor(Port.B, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,21])\n"
+    "Joint5 = Motor(Port.D, reset_angle=False, gears=[1,22])\n"
+    "Joint6 = Motor(Port.F, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,12])\n"
+    f"jointLimits = {self.limitsDegreesRobot}\n"
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
     "motorSpeed = 500\n"
-    "torqueLimit = 90\n"
+    "torqueLimit = 100\n"
     "torqueLimitWrist = 30\n\n"
     
     "def dutyLimitMotors():\n"
-    "    motorA.control.limits(torque=150)\n"
-    "    motorB.control.limits(torque=135)\n"
-    "    motorC.control.limits(torque=torqueLimit)\n"
-    "    motorD.control.limits(torque=torqueLimit)\n"
-    "    motorE.control.limits(torque=torqueLimit)\n"
-    "    motorF.control.limits(torque=torqueLimit)\n\n"
-    
+    "    Joint1.control.limits(torque=torqueLimit)\n"
+    "    Joint2.control.limits(torque=torqueLimit)\n"
+    "    Joint3.control.limits(torque=95)\n"
+    "    Joint4.control.limits(torque=torqueLimit)\n"
+    "    Joint5.control.limits(torque=torqueLimit)\n"
+    "    Joint6.control.limits(torque=torqueLimit)\n\n"
+    "def motorErrorCompen():\n"
+    "    for i,(Joint, limit) in enumerate(zip([Joint1,Joint2,Joint3,Joint4], jointLimits)):\n"
+    "        if Joint.angle() != limit:\n"  
+    "            error = abs(calcDirection(limit, Joint))\n"
+    "            if direction_list[i] < 0:\n"
+    "                direction_list[i] -= error\n"
+    "            else:\n"
+    "                direction_list[i] += error\n\n"
     "async def homingMotors():\n"
     "    await multitask(\n"
-    "        motorA.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=40),\n"
-    "        motorB.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
-    "        motorD.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
-    "        motorE.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35)\n"
+    "        Joint1.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=40),\n"
+    "        Joint2.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
+    "        Joint3.run_until_stalled(motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
+    "        Joint4.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
+    "        Joint5.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35)\n"
     "    )\n\n"
     
     "def setHomingLimits():\n"
-    "    for motor, limit in zip([motorA,motorE,motorC,motorB,motorD], jointLimits):\n"
-    "        motor.reset_angle(limit[0])\n\n"
-    "        print(motor.angle())\n\n"
+    "    for Joint, limit in zip([Joint1,Joint2,Joint3,Joint4,Joint5], jointLimits):\n"
+    "        Joint.reset_angle(limit)\n\n"
+    "        print(Joint.angle())\n\n"
 
     
     "def homing():\n"
     "    run_task(homingMotors())\n"
     "    wait(3000)\n"
-    "    motorC.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=45),\n"
     "    setHomingLimits()\n"
     "    return True\n\n"
     
     "async def check_motor():\n"
-    "    return all(motor.done() for motor in [motorA, motorB, motorC, motorD, motorE, motorF])\n\n"
+    "    return all(Joint.done() for Joint in [Joint1,Joint2,Joint3,Joint4,Joint5,Joint6])\n\n"
     
-    "def calcDirection(dir, motor):\n"
-    "    angleCalc = motor.angle()\n"
+    "def calcDirection(dir, Joint):\n"
+    "    angleCalc = Joint.angle()\n"
     "    if dir > 0:\n"
     "        if angleCalc < 0:\n"
     "            angleCalc = abs(angleCalc) + dir\n"
@@ -226,50 +242,50 @@ class robotMovement:
     "        angleCalc = abs(angleCalc) \n"
     "    return angleCalc\n\n"
     "async def stallMotors():\n"
-    "    if motorA.stalled():\n"
-    "        motorA.stop()\n"
-    "        print('Motor A stalled at',motorA.angle())\n"
-    "    if motorB.stalled():\n"
-    "        motorB.stop()\n"
-    "        print('Motor B stalled at',motorB.angle())\n"
-    "    if motorC.stalled():\n"
-    "        motorC.stop()\n"
-    "        print('Motor C stalled at',motorC.angle())\n"
-    "    if motorD.stalled():\n"
-    "        motorD.stop()\n"
-    "        print('Motor D stalled at',motorD.angle())\n"
-    "    if motorE.stalled():\n"
-    "        motorE.stop()\n"
-    "        print('Motor E stalled at',motorE.angle())\n"
-    "    if motorF.stalled():\n"
-    "        motorF.stop()\n\n"
-    "        print('Motor F stalled at',motorF.angle())\n\n"
+    "    if Joint1.stalled():\n"
+    "        Joint1.stop()\n"
+    "        print('Joint1 stalled at',Joint1.angle())\n"
+    "    if Joint2.stalled():\n"
+    "        Joint2.stop()\n"
+    "        print('Joint2 stalled at',Joint2.angle())\n"
+    "    if Joint3.stalled():\n"
+    "        Joint3.stop()\n"
+    "        print('Joint3 stalled at',Joint3.angle())\n"
+    "    if Joint4.stalled():\n"
+    "        Joint4.stop()\n"
+    "        print('Joint4 stalled at',Joint4.angle())\n"
+    "    if Joint5.stalled():\n"
+    "        Joint5.stop()\n"
+    "        print('Joint5 stalled at',Joint5.angle())\n"
+    "    if Joint6.stalled():\n"
+    "        Joint6.stop()\n\n"
+    "        print('Joint6 stalled at',Joint6.angle())\n\n"
         
     "async def run_motors(list):\n"
     "    await multitask(\n"
-    "        motorA.run_angle(motorSpeed, calcDirection(list[0], motorA), Stop.COAST_SMART),\n"
-    "        motorB.run_angle(motorSpeed, calcDirection(list[3], motorB), Stop.COAST_SMART),\n"
-    "        motorC.run_angle(motorSpeed, calcDirection(list[2], motorC), Stop.COAST_SMART),\n"
-    "        motorD.run_angle(motorSpeed, calcDirection(list[4], motorD), Stop.COAST_SMART),\n"
-    "        motorE.run_angle(motorSpeed, calcDirection(list[1], motorE), Stop.COAST_SMART),\n"
-    "        motorF.run_angle(motorSpeed, calcDirection(list[5], motorF), Stop.COAST_SMART)\n"
+    "        Joint1.run_angle(motorSpeed, calcDirection(list[0], Joint1), Stop.COAST_SMART),\n"
+    "        Joint2.run_angle(motorSpeed, calcDirection(list[1], Joint2), Stop.COAST_SMART),\n"
+    "        Joint3.run_angle(motorSpeed, calcDirection(list[2], Joint3), Stop.COAST_SMART),\n"
+    "        Joint4.run_angle(motorSpeed, calcDirection(list[3], Joint4), Stop.COAST_SMART),\n"
+    "        Joint5.run_angle(motorSpeed, calcDirection(list[4], Joint5), Stop.COAST_SMART),\n"
+    "        Joint6.run_angle(motorSpeed, calcDirection(list[5], Joint6), Stop.COAST_SMART)\n"
     "    )\n\n"
     
     "async def print_angles(watch):\n"
-    "    print(f\"{'Motor':>10} {'A':>10} {'B':>10} {'C':>10} {'D':>10} {'E':>10} {'F':>10}\")\n"
-    "    print(f\"{'Target':>10} {direction_list[0]:>10.2f} {direction_list[3]:>10.2f} {direction_list[2]:>10.2f} {direction_list[4]:>10.2f} {direction_list[1]:>10.2f} {direction_list[5]:>10.2f}\")\n"
+    "    print(f\"{'Joint':>10} {'J1':>10} {'J2':>10} {'J3':>10} {'J4':>10} {'J5':>10} {'J6':>10}\")\n"
+    "    print(f\"{'Target':>10} {direction_list[0]:>10.2f} {direction_list[1]:>10.2f} {direction_list[2]:>10.2f} {direction_list[3]:>10.2f} {direction_list[4]:>10.2f} {direction_list[5]:>10.2f}\")\n"
     "    while True:\n"
     "        angles = [\n"
-    "            motorA.angle(),\n"
-    "            motorB.angle(),\n"
-    "            motorC.angle(),\n"
-    "            motorD.angle(),\n"
-    "            motorE.angle(),\n"
-    "            motorF.angle()\n"
+    "            Joint1.angle(),\n"
+    "            Joint2.angle(),\n"
+    "            Joint3.angle(),\n"
+    "            Joint4.angle(),\n"
+    "            Joint5.angle(),\n"
+    "            Joint6.angle()\n"
     "        ]\n"
     "        if await check_motor():\n"
     "            print('Elapsed time:',watch.time()/1000,'s')\n"
-    "            print(f\"{'Error':>10} {abs(direction_list[0]) - abs(angles[0]):>10.2f} {abs(direction_list[3]) - abs(angles[1]):>10.2f} {abs(direction_list[2]) - abs(angles[2]):>10.2f} {abs(direction_list[4]) - abs(angles[3]):>10.2f} {abs(direction_list[1]) - abs(angles[4]):>10.2f} {abs(direction_list[5]) - abs(angles[5]):>10.2f}\")\n"
+    "            print(f\"{'Error':>10} {abs(direction_list[0]) - abs(angles[0]):>10.2f} {abs(direction_list[1]) - abs(angles[1]):>10.2f} {abs(direction_list[2]) - abs(angles[2]):>10.2f} {abs(direction_list[3]) - abs(angles[3]):>10.2f} {abs(direction_list[4]) - abs(angles[4]):>10.2f} {abs(direction_list[5]) - abs(angles[5]):>10.2f}\")\n"
     "            print(f\"{'Angle result':>10} {angles[0]:>10.2f} {angles[1]:>10.2f} {angles[2]:>10.2f} {angles[3]:>10.2f} {angles[4]:>10.2f} {angles[5]:>10.2f}\")\n"
     "            print('Jobs done')\n"
     "            break\n\n"
