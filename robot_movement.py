@@ -124,7 +124,7 @@ class robotMovement:
         # Calculating the inverse kinematics
         self.solution = self.kuka_robot.ikine_GN(T,joint_limits=True,slimit=100,ilimit=100)
         if self.solution.success:
-           print(self.solution.residual)
+           print(f'Residual error for the solution found: {self.solution.residual}')
            print(f'Solution found: {self.solution.q}')
         else:                       
             print(self.solution.reason)
@@ -162,7 +162,7 @@ class robotMovement:
         # Plotting the robot
         q0old = self.kuka_robot.q.copy()
         traj = rtb.jtraj(self.kuka_robot.q,pose, 100)
-        self.kuka_robot.plot(traj.q,block=True,backend='pyplot', eeframe=True,dt=0.05)
+        self.kuka_robot.plot(traj.q,block=True,backend='pyplot', eeframe=True,dt=0.05,limits=[-300,300,-300,400,0,400])
         self.kuka_robot.q = q0old
         
     def writeFile(self, sols):
@@ -184,16 +184,14 @@ class robotMovement:
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
     "motorSpeed = 500\n"
-    "torqueLimit = 100\n"
-    "torqueLimitWrist = 30\n\n"
-    
-    "def dutyLimitMotors():\n"
-    "    Joint1.control.limits(torque=torqueLimit)\n"
-    "    Joint2.control.limits(torque=torqueLimit)\n"
-    "    Joint3.control.limits(torque=95)\n"
-    "    Joint4.control.limits(torque=torqueLimit)\n"
-    "    Joint5.control.limits(torque=torqueLimit)\n"
-    "    Joint6.control.limits(torque=torqueLimit)\n\n"
+    "dcDefault = 50\n"
+    "def duty_cycle_adjustment():\n"
+    "   Joint1.dc(dcDefault)\n"
+    "   Joint2.dc(dcDefault)\n"
+    "   Joint3.dc(dcDefault)\n"
+    "   Joint4.dc(dcDefault)\n"
+    "   Joint5.dc(dcDefault)\n"
+    "   Joint6.dc(dcDefault)\n\n"
     "def motorErrorCompen():\n"
     "    for i,(Joint, limit) in enumerate(zip([Joint1,Joint2,Joint3,Joint4], jointLimits)):\n"
     "        if Joint.angle() != limit:\n"  
@@ -204,7 +202,7 @@ class robotMovement:
     "                direction_list[i] += error\n\n"
     "async def homingMotors():\n"
     "    await multitask(\n"
-    "        Joint1.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=40),\n"
+    "        #Joint1.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=40),\n"
     "        Joint2.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
     "        Joint3.run_until_stalled(motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
     "        Joint4.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
@@ -213,13 +211,12 @@ class robotMovement:
     
     "def setHomingLimits():\n"
     "    for Joint, limit in zip([Joint1,Joint2,Joint3,Joint4,Joint5], jointLimits):\n"
-    "        Joint.reset_angle(limit)\n\n"
-    "        print(Joint.angle())\n\n"
-
-    
+    "        Joint.reset_angle(limit)\n\n"  
     "def homing():\n"
     "    run_task(homingMotors())\n"
     "    wait(3000)\n"
+    "    duty_cycle_adjustment()\n"
+    "    motorErrorCompen()\n"
     "    setHomingLimits()\n"
     "    return True\n\n"
     
@@ -263,7 +260,7 @@ class robotMovement:
         
     "async def run_motors(list):\n"
     "    await multitask(\n"
-    "        Joint1.run_angle(motorSpeed, calcDirection(list[0], Joint1), Stop.COAST_SMART),\n"
+    "        #Joint1.run_angle(motorSpeed, calcDirection(list[0], Joint1), Stop.COAST_SMART),\n"
     "        Joint2.run_angle(motorSpeed, calcDirection(list[1], Joint2), Stop.COAST_SMART),\n"
     "        Joint3.run_angle(motorSpeed, calcDirection(list[2], Joint3), Stop.COAST_SMART),\n"
     "        Joint4.run_angle(motorSpeed, calcDirection(list[3], Joint4), Stop.COAST_SMART),\n"
@@ -294,12 +291,11 @@ class robotMovement:
     "        print(f\"{'Current angle':>10} {angles[0]:>10.2f} {angles[1]:>10.2f} {angles[2]:>10.2f} {angles[3]:>10.2f} {angles[4]:>10.2f} {angles[5]:>10.2f}\")\n"
     
     "async def driveMotors(watch):\n"
-    "    await multitask(run_motors(direction_list),stallMotors(), print_angles(watch))\n\n"
+    "    await multitask(run_motors(direction_list),print_angles(watch))\n\n"
     
     "def main():\n"
     "    if homingState == False:\n"
     "       homing()\n"
-    "    dutyLimitMotors()\n"
     "    watch = StopWatch()\n"
     "    run_task(driveMotors(watch))\n"
     "    watch.reset()\n\n"
