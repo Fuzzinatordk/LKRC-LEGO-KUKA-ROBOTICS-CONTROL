@@ -1,15 +1,16 @@
-import sys, subprocess,roboticstoolbox as rtb, numpy as np
+import subprocess,roboticstoolbox as rtb, numpy as np
 from spatialmath import SE3
-import keyboard, time
+import ast, time
 class robotMovement:
     # Class constructor
     def __init__(self):
         # File name for the generated python file
         self.fileName = "kukaCode.py"
         # Limits for the robot joints in degrees
-        self.limitsDegrees = [[-170, 170], [-150,-25], [40, 155], [-350, 335], [-115, 100], [-350, 335]]
+        self.limitsDegrees = [[-170, 170], [-120,-50], [30, 130], [-350, 350], [-115, 115], [-350, 350]]
         # Limits for robot
         self.limitsDegreesRobot = [-170,-150,155,-350,-115,-350]
+        self.angular_error = [0,0,0,0,0,0]
         # Limits for the robot joints in radians
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         # Homing state for the robot
@@ -164,8 +165,23 @@ class robotMovement:
         traj = rtb.jtraj(self.kuka_robot.q,pose, 100)
         self.kuka_robot.plot(traj.q,block=True,backend='pyplot', eeframe=True,dt=0.05,limits=[-300,300,-300,400,0,400])
         self.kuka_robot.q = q0old
-        
-    def writeFile(self, sols):
+    def __errorCorrection(self,new_q):
+        # Error correction for the robot
+        for i in range(6):
+            if i == 6:
+                new_q[i] == self.kuka_robot.q[i]
+            if new_q[i] < 0:
+                if new_q[i] < self.limitsDegrees[i][0]:
+                    new_q[i] += self.angular_error[i]  
+                else:
+                    new_q[i] -= self.angular_error[i]
+            else:
+                if new_q[i] < self.limitsDegrees[i][0]:
+                    new_q[i] += self.angular_error[i] 
+                else:
+                    new_q[i] -= self.angular_error[i]
+        return new_q
+    def writeFile(self, sols):  
         # Writing the python file for the robot
         content = (
     "from pybricks.hubs import InventorHub\n"
@@ -184,7 +200,7 @@ class robotMovement:
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
     "motorSpeed = 500\n"
-    "dcDefault = 50\n"
+    "dcDefault = 40\n"
     "def duty_cycle_adjustment():\n"
     "   Joint1.dc(dcDefault)\n"
     "   Joint2.dc(dcDefault)\n"
@@ -192,14 +208,6 @@ class robotMovement:
     "   Joint4.dc(dcDefault)\n"
     "   Joint5.dc(dcDefault)\n"
     "   Joint6.dc(dcDefault)\n\n"
-    "def motorErrorCompen():\n"
-    "    for i,(Joint, limit) in enumerate(zip([Joint1,Joint2,Joint3,Joint4], jointLimits)):\n"
-    "        if Joint.angle() != limit:\n"  
-    "            error = abs(calcDirection(limit, Joint))\n"
-    "            if direction_list[i] < 0:\n"
-    "                direction_list[i] -= error\n"
-    "            else:\n"
-    "                direction_list[i] += error\n\n"
     "async def homingMotors():\n"
     "    await multitask(\n"
     "        #Joint1.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=40),\n"
@@ -211,13 +219,18 @@ class robotMovement:
     
     "def setHomingLimits():\n"
     "    for Joint, limit in zip([Joint1,Joint2,Joint3,Joint4,Joint5], jointLimits):\n"
-    "        Joint.reset_angle(limit)\n\n"  
+    "        Joint.reset_angle(limit)\n\n"
+    "def calcHomingDiff():\n"
+    "    errorList = []\n"
+    "    for Joint, limit in zip([Joint1,Joint2,Joint3,Joint4,Joint5,Joint6], jointLimits):\n"
+    "        errorList.append(abs(Joint.angle() - limit))\n"
+    "    return errorList\n\n"
     "def homing():\n"
     "    run_task(homingMotors())\n"
     "    wait(3000)\n"
     "    duty_cycle_adjustment()\n"
-    "    motorErrorCompen()\n"
     "    setHomingLimits()\n"
+    "    print('error =',calcHomingDiff())\n"
     "    return True\n\n"
     
     "async def check_motor():\n"
@@ -286,7 +299,7 @@ class robotMovement:
     "        if await check_motor():\n"
     "            print('Elapsed time:',watch.time()/1000,'s')\n"
     "            print(f\"{'Error':>10} {abs(direction_list[0]) - abs(angles[0]):>10.2f} {abs(direction_list[1]) - abs(angles[1]):>10.2f} {abs(direction_list[2]) - abs(angles[2]):>10.2f} {abs(direction_list[3]) - abs(angles[3]):>10.2f} {abs(direction_list[4]) - abs(angles[4]):>10.2f} {abs(direction_list[5]) - abs(angles[5]):>10.2f}\")\n"
-    "            print(f\"{'Angle result':>10} {angles[0]:>10.2f} {angles[1]:>10.2f} {angles[2]:>10.2f} {angles[3]:>10.2f} {angles[4]:>10.2f} {angles[5]:>10.2f}\")\n"
+    "            print('Angle result =',angles)\n"
     "            print('Jobs done')\n"
     "            break\n\n"
    
@@ -330,8 +343,20 @@ class robotMovement:
             result = self.__terminalCmd(command)
             time.sleep(0.5)
             if(result.stdout != 0):
+                for line in result.stdout.splitlines():
+                    if "error =" in line and self.homingState == False:
+                        error_str = line.split("error =")[-1].strip()
+                        self.angular_error = ast.literal_eval(error_str)
+                    elif "Angle result =" in line:
+                        new_angles = line.split("Angle result =")[-1].strip()
+                        new_angles = ast.literal_eval(new_angles)
+                        new_q = np.array(new_angles)
+                        #new_q = self.__errorCorrection(new_q)
+                        new_q = np.deg2rad(new_q)
+                        self.kuka_robot.q = new_q
+                        print(self.kuka_robot.q)
+                        break
+                if self.homingState == False:
+                    self.homingState = True
                 break
-        if self.homingState == False:
-            self.homingState = True
-    
         
