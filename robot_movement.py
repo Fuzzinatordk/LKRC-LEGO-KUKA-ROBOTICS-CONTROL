@@ -199,22 +199,15 @@ class robotMovement:
     f"jointLimits = {self.limitsDegreesRobot}\n"
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
-    "motorSpeed = 500\n"
-    "dcDefault = 40\n"
-    "def duty_cycle_adjustment():\n"
-    "   Joint1.dc(dcDefault)\n"
-    "   Joint2.dc(dcDefault)\n"
-    "   Joint3.dc(dcDefault)\n"
-    "   Joint4.dc(dcDefault)\n"
-    "   Joint5.dc(dcDefault)\n"
-    "   Joint6.dc(dcDefault)\n\n"
+    "homingMotorSpeed = 50\n"
+    "motorSpeed = 30\n\n"
     "async def homingMotors():\n"
     "    await multitask(\n"
-    "        #Joint1.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=40),\n"
-    "        Joint2.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
-    "        Joint3.run_until_stalled(motorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
-    "        Joint4.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
-    "        Joint5.run_until_stalled(-motorSpeed, then=Stop.COAST_SMART, duty_limit=35)\n"
+    "        Joint1.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
+    "        Joint2.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
+    "        Joint3.run_until_stalled(homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
+    "        Joint4.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
+    "        Joint5.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35)\n"
     "    )\n\n"
     
     "def setHomingLimits():\n"
@@ -228,7 +221,6 @@ class robotMovement:
     "def homing():\n"
     "    run_task(homingMotors())\n"
     "    wait(3000)\n"
-    "    duty_cycle_adjustment()\n"
     "    setHomingLimits()\n"
     "    print('error =',calcHomingDiff())\n"
     "    return True\n\n"
@@ -276,7 +268,7 @@ class robotMovement:
         
     "async def run_motors(list):\n"
     "    await multitask(\n"
-    "        #Joint1.run_angle(motorSpeed, calcDirection(list[0], Joint1), Stop.COAST_SMART),\n"
+    "        Joint1.run_angle(motorSpeed, calcDirection(list[0], Joint1), Stop.COAST_SMART),\n"
     "        Joint2.run_angle(motorSpeed, calcDirection(list[1], Joint2), Stop.COAST_SMART),\n"
     "        Joint3.run_angle(motorSpeed, calcDirection(list[2], Joint3), Stop.COAST_SMART),\n"
     "        Joint4.run_angle(motorSpeed, calcDirection(list[3], Joint4), Stop.COAST_SMART),\n"
@@ -351,7 +343,7 @@ class robotMovement:
                         new_angles = line.split("Angle result =")[-1].strip()
                         new_angles = ast.literal_eval(new_angles)
                         new_q = np.array(new_angles)
-                        #new_q = self.__errorCorrection(new_q)
+                        new_q = self.__errorCorrection(new_q)
                         new_q = np.deg2rad(new_q)
                         self.kuka_robot.q = new_q
                         print(self.kuka_robot.q)
