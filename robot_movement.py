@@ -49,6 +49,13 @@ class robotMovement:
         self.q0home = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
         self.kuka_robot.q = self.q0home
         self.kuka_robot.qlim = limitArray
+    def teach(self):
+        # Teaching the robot
+        taught = self.kuka_robot.teach(self.kuka_robot.q,block=True,backend='pyplot',limits=[-300,300,-300,400,0,400])
+        if taught:
+            self.chosen_joint_config = [slider.val for slider in taught.sjoint]
+            print(f'Chosen joint configuration: {self.chosen_joint_config} in degrees')
+            return self.chosen_joint_config
     def FK_solution(self,angles,type):
         # Checking if the number of angles provided is correct
         if len(angles) != 6:
@@ -103,7 +110,7 @@ class robotMovement:
             # PTP motion
             self.PTPplot(angles)
         #Stating new q0 for the robot to start from 
-        self.kuka_robot.q = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=angles)
+        self.kuka_robot.q = angles
         angles = np.rad2deg(angles)
         angles = angles.tolist()
         # Writing the file
@@ -199,8 +206,8 @@ class robotMovement:
     f"jointLimits = {self.limitsDegreesRobot}\n"
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
-    "homingMotorSpeed = 50\n"
-    "motorSpeed = 30\n\n"
+    "homingMotorSpeed = 70\n"
+    "motorSpeed = 150\n\n"
     "async def homingMotors():\n"
     "    await multitask(\n"
     "        Joint1.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
@@ -350,5 +357,6 @@ class robotMovement:
                         break
                 if self.homingState == False:
                     self.homingState = True
+                    
                 break
         
