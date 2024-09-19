@@ -83,7 +83,7 @@ class robotMovement:
         # Getting the Jacobian matrix for the robot
         J = self.kuka_robot.jacob0(self.q0)
         print(J)
-    def FK(self,angles,type,plot=False,PTP=False):
+    def FK(self,angles,type='deg',plot=False,PTP=False):
         # Forward kinematics for the robot
         # Checking if the number of angles provided is correct
         if len(angles) != 6:
@@ -207,7 +207,7 @@ class robotMovement:
     f"direction_list = {sols}\n"
     f"homingState = {self.homingState}\n"
     "homingMotorSpeed = 70\n"
-    "motorSpeed = 150\n\n"
+    "motorSpeed = 100\n\n"
     "async def homingMotors():\n"
     "    await multitask(\n"
     "        Joint1.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
