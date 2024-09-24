@@ -17,6 +17,8 @@ class robotMovement:
         self.limitsRadian = np.deg2rad(self.limitsDegrees)
         # Homing state for the robot
         self.homingState = False 
+        self.firstRun = True
+        self.checkRun = False
         # DH parameters for the robot   
         self.__DHParams()
     # Private method to set the DH parameters for the robot
@@ -50,7 +52,10 @@ class robotMovement:
         # Setting the initial joint angles for the robot
         self.q0home = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
         self.kuka_robot.q = self.q0home
+        print("q ",np.rad2deg(self.kuka_robot.q))
+        
         self.kuka_robot.qlim = limitArray
+        print("limits ", np.rad2deg(self.kuka_robot.qlim))
         #Homing
         self.writeFile(self.solutionList)
         
@@ -67,9 +72,6 @@ class robotMovement:
             print('Please provide 3 pose values')
             return
         q = self.kuka_robot.fkine(self.kuka_robot.q)
-        # Print original transformation matrix from spatialmath (rounded by default)
-        print("Original Transformation Matrix (q):")
-        print(q)
         
         q_np = q.A  # Extract matrix
         np.set_printoptions(precision=4, suppress=True)
@@ -78,22 +80,23 @@ class robotMovement:
         q_np[1, 3] += pose[1]  # Modify z-value
         q_np[2, 3] += pose[2]  # Modify z-value
         
-        # Print modified transformation matrix with rounding
-        print("Modified Transformation Matrix (q_np):")
-        print(q_np)
         # Solve inverse kinematics for the modified transformation matrix
-        q_ikine = self.kuka_robot.ikine_LM(q_np, q0=self.kuka_robot.q, ilimit=100, tol=1e-6,joint_limits=True)
+        q_ikine = self.kuka_robot.ikine_GN(q_np,joint_limits=True,slimit=100,ilimit=100)
+        if not q_ikine.success:
+            print('No solution found for the given pose')
+            print(q_ikine.reason)
+            return
         q_ikine = q_ikine.q
         self.kuka_robot.q = q_ikine
-        print(self.kuka_robot.q) 
         q_ikine = np.rad2deg(q_ikine)
         q_ikine = q_ikine.tolist()
-        print("Inverse Kinematics Solution (q_ikine):")
+        print(f'End-effector pose: {q_ikine}')
         self.PTPList.append(q_ikine)
     def linearRun(self):
         if len(self.PTPList) == 0:
             print('Please provide a pose first, using linearPTP()')
             return
+        self.checkRun = True
         self.writeFile(self.PTPList)
     def FK_solution(self,angles,type):
         # Checking if the number of angles provided is correct
@@ -231,7 +234,19 @@ class robotMovement:
                 new_q[i] = self.limitsDegrees[i][1]
         
         return new_q
-    def writeFile(self, sols):  
+    def writeFile(self, sols):
+        self.corrected_angles_degrees = []
+        if self.firstRun and self.homingState == True:
+            for sol in sols:
+                for i in range(6):
+                    if self.limitsDegreesRobot[i] > 0:
+                        sol[i] += self.angular_error[i]
+                    else:
+                        sol[i] -= self.angular_error[i]
+            self.firstRun = False
+        else:
+            self.corrected_angles_degrees = np.rad2deg(self.kuka_robot.q)
+            self.corrected_angles_degrees = self.corrected_angles_degrees.tolist()
         # Writing the python file for the robot
         content = (
     "from pybricks.hubs import InventorHub\n"
@@ -246,6 +261,8 @@ class robotMovement:
     "Joint4 = Motor(Port.B, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,21])\n"
     "Joint5 = Motor(Port.D, reset_angle=False, gears=[1,22])\n"
     "Joint6 = Motor(Port.F, Direction.COUNTERCLOCKWISE, reset_angle=False, gears=[1,12])\n"
+    f"correctJoints = {self.firstRun}\n"
+    f"corrected_angles = {self.corrected_angles_degrees}\n"
     f"jointLimits = {self.limitsDegreesRobot}\n"
     f"list = {sols}\n"
     f"homingState = {self.homingState}\n"
@@ -255,13 +272,17 @@ class robotMovement:
     "    await multitask(\n"
     "        Joint1.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
     "        Joint2.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
-    "        Joint3.run_until_stalled(homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
+    "        Joint3.run_until_stalled(homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
     "        Joint4.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
-    "        Joint5.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35)\n"
+    "        Joint5.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
+    "        Joint6.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=25)\n"
     "    )\n\n"
-    
+    "def correctJoints():\n"
+    "    for Joint,angle in zip([Joint1,Joint2,Joint3,Joint4,Joint5],corrected_angles):\n"
+    "        Joint.reset_angle(angle)\n\n"
+    "        print(Joint.angle())\n\n"
     "def setHomingLimits():\n"
-    "    for Joint, limit in zip([Joint1,Joint2,Joint3,Joint4,Joint5], jointLimits):\n"
+    "    for Joint, limit in zip([Joint1,Joint2,Joint3,Joint4,Joint5,Joint6], jointLimits):\n"
     "        Joint.reset_angle(limit)\n\n"
     "def calcHomingDiff():\n"
     "    errorList = []\n"
@@ -310,6 +331,8 @@ class robotMovement:
     "    await multitask(run_motors(direction_list))\n\n"
     
     "def main():\n"
+    "    if correctJoints == False:\n"
+    "       correctJoints()\n"
     "    if homingState == False:\n"
     "       homing()\n"
     "       return\n"
@@ -328,7 +351,7 @@ class robotMovement:
         self.__createFile(content)
     def __terminalCmd(self, command):
         # Running the terminal command
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        result = subprocess.run(command, shell=True, capture_output=True, text=True, encoding='utf-8')
         print(result.stdout)
         return result
     def __createFile(self,content):
@@ -343,34 +366,21 @@ class robotMovement:
             #keyboard.wait('q')
         print("Running program...")
         command = f'pipx run pybricksdev run ble {self.fileName}'
-        if self.homingState == False:
-            while(True):
-                print("homing false loop")
-                result = self.__terminalCmd(command)
-                time.sleep(0.5)
-                if(result.stdout != 0):
-                    for line in result.stdout.splitlines():
-                        if "error =" in line and self.homingState == False:
-                            error_str = line.split("error =")[-1].strip()
-                            self.angular_error = ast.literal_eval(error_str)
-                            corrected_angles = self.__errorCorrection(self.kuka_robot.q)
-                            corrected_angles = np.deg2rad(corrected_angles)
-                            self.kuka_robot.q = corrected_angles
+        while(True):
+            print("homing false loop")
+            result = self.__terminalCmd(command)
+            time.sleep(0.5)
+            if(result.stdout != 0):
+                for line in result.stdout.splitlines():
+                       if "error =" in line and self.homingState == False:
+                        error_str = line.split("error =")[-1].strip()
+                        self.angular_error = ast.literal_eval(error_str)
+                if self.homingState == False:
                     self.homingState = True
-                    return
-        else:          
-            while(True):
-                print("homing true loop")
-                result = self.__terminalCmd(command)
-                time.sleep(0.5)
-                if(result.stdout != 0):
-                    if "Angle result =" in line:
-                        new_angles = line.split("Angle result =")[-1].strip()
-                        new_angles = ast.literal_eval(new_angles)
-                        new_q = np.array(new_angles)
-                        new_q = self.__errorCorrection(new_q)
-                        new_q = np.deg2rad(new_q)
-                        self.kuka_robot.q = new_q
-                        print(self.kuka_robot.q)
-                        break
+                if self.checkRun == True:
+                    self.PTPList.clear()
+                    self.checkRun = False
+                    
+                return
+
             
