@@ -7,7 +7,7 @@ class robotMovement:
         # File name for the generated python file
         self.fileName = "kukaCode.py"
         # Limits for the robot joints in degrees
-        self.limitsDegrees = [[-170, 170], [-120,-50], [30, 130], [-350, 350], [-115, 115], [-350, 350]]
+        self.limitsDegrees = [[-170, 170], [-150,-10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
         # Limits for robot
         self.limitsDegreesRobot = [-170,-150,155,-350,-115,-350]
         self.angular_error = [0,0,0,0,0,0]
@@ -51,11 +51,8 @@ class robotMovement:
             self.q0[i] = (self.limitsRadian[i][0])
         # Setting the initial joint angles for the robot
         self.q0home = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.q0)
-        self.kuka_robot.q = self.q0home
-        print("q ",np.rad2deg(self.kuka_robot.q))
-        
+        self.kuka_robot.q = self.q0home     
         self.kuka_robot.qlim = limitArray
-        print("limits ", np.rad2deg(self.kuka_robot.qlim))
         #Homing
         self.writeFile(self.solutionList)
         
@@ -72,7 +69,7 @@ class robotMovement:
             print('Please provide 3 pose values')
             return
         q = self.kuka_robot.fkine(self.kuka_robot.q)
-        
+        print(np.rad2deg(self.kuka_robot.q))
         q_np = q.A  # Extract matrix
         np.set_printoptions(precision=4, suppress=True)
 
@@ -243,6 +240,7 @@ class robotMovement:
                         sol[i] += self.angular_error[i]
                     else:
                         sol[i] -= self.angular_error[i]
+            print("Corrected angles: ",sols)
             self.firstRun = False
         else:
             self.corrected_angles_degrees = np.rad2deg(self.kuka_robot.q)
@@ -275,7 +273,7 @@ class robotMovement:
     "        Joint3.run_until_stalled(homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=30),\n"
     "        Joint4.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=15),\n"
     "        Joint5.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=35),\n"
-    "        Joint6.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=25)\n"
+    "        Joint6.run_until_stalled(-homingMotorSpeed, then=Stop.COAST_SMART, duty_limit=15)\n"
     "    )\n\n"
     "def correctJoints():\n"
     "    for Joint,angle in zip([Joint1,Joint2,Joint3,Joint4,Joint5],corrected_angles):\n"
@@ -294,6 +292,8 @@ class robotMovement:
     "    wait(3000)\n"
     "    setHomingLimits()\n"
     "    print('error =',calcHomingDiff())\n"
+    "    angles = [Joint1.angle(),Joint2.angle(),Joint3.angle(),Joint4.angle(),Joint5.angle(),Joint6.angle()]\n"
+    "    print('Homing result =',angles)\n"
     "    return True\n\n"
     
     "async def check_motor():\n"
