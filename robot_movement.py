@@ -56,7 +56,10 @@ class robotMovement:
         self.kuka_robot.qlim = limitArray
         #Homing
         self.writeFile(self.solutionList)
-        
+    def homing(self):
+        self.homingState = False
+        self.solutionList.clear()
+        self.writeFile(self.solutionList)    
     def teach(self):
         # Teaching the robot
         taught = self.kuka_robot.teach(self.kuka_robot.q,block=True,backend='pyplot',limits=[-300,300,-300,400,0,400])
@@ -70,14 +73,10 @@ class robotMovement:
             print('Please provide 3 pose values')
             return
         q = self.kuka_robot.fkine(self.kuka_robot.q)
-        print(np.rad2deg(self.kuka_robot.q))
         q_np = q.A  # Extract matrix
-        np.set_printoptions(precision=4, suppress=True)
-
         q_np[0, 3] += pose[0]  # Modify x-value
-        q_np[1, 3] += pose[1]  # Modify z-value
+        q_np[1, 3] += pose[1]  # Modify y-value
         q_np[2, 3] += pose[2]  # Modify z-value
-        
         # Solve inverse kinematics for the modified transformation matrix
         q_ikine = self.kuka_robot.ikine_GN(q_np,joint_limits=True,slimit=100,ilimit=100)
         if not q_ikine.success:
@@ -120,7 +119,6 @@ class robotMovement:
             q_ikine = q_ikine.tolist()
             print(f'End-effector pose: {q_ikine}')
             self.PTPList.append(q_ikine)
-            print(q_ikine)
         q = self.kuka_robot.fkine(self.kuka_robot.q)
         q_np = q.A
     def __bezierCurve(self, start, end, top, t):
@@ -383,7 +381,6 @@ class robotMovement:
         print("Running program...")
         command = f'pipx run pybricksdev run ble {self.fileName}'
         while(True):
-            print("homing false loop")
             result = self.__terminalCmd(command)
             time.sleep(0.5)
             if(result.stdout != 0):
