@@ -41,3 +41,8 @@ Install these dependencies using:
 ```bash
 pip install numpy roboticstoolbox-python spatialmath
 
+Methods
+__init__()
+Description: Initializes the robot’s Denavit-Hartenberg (DH) parameters, joint limits, and sets up the homing configuration.
+Input: None
+Output: None
