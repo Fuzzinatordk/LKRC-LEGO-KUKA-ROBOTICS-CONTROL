@@ -9,12 +9,13 @@ class robotMovement:
         # Limits for the robot joints in degrees
         self.limitsDegrees = [[-170, 170], [-150,-10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
         # Limits for robot
+        self.limitsCorrected = [[-170, 170], [-150,-30], [30, 155], [-350, 350], [-115, 115], [-350, 350]]
         self.limitsDegreesRobot = [-170,-150,155,-350,-115,-350]
         self.angular_error = [0,0,0,0,0,0]
         self.PTPList = []
         self.solutionList = []
         # Limits for the robot joints in radians
-        self.limitsRadian = np.deg2rad(self.limitsDegrees)
+        self.limitsRadian = np.deg2rad(self.limitsCorrected)
         # Homing state for the robot
         self.homingState = False 
         self.firstRun = True
@@ -89,6 +90,42 @@ class robotMovement:
         q_ikine = q_ikine.tolist()
         print(f'End-effector pose: {q_ikine}')
         self.PTPList.append(q_ikine)
+    def circularPTP(self,startPose=[0,0,0],endPose=[0,0,0],topPose=[0,0,0],steps=100):
+        # Get the forward kinematics transformation matrix
+        if len(startPose) != 3 or len(endPose) != 3 or len(topPose) != 3:
+            print('Please provide 3 pose values')
+            return
+        start = np.array(startPose)
+        end = np.array(endPose)
+        top = np.array(topPose)
+        # Calculate the Bezier curve
+        t_values = np.linspace(0, 1, steps)
+        #compute the points on the curve
+        arc_points = [self.__bezierCurve(start, end, top, t) for t in t_values]
+        for point in arc_points:
+            q = self.kuka_robot.fkine(self.kuka_robot.q)
+            q_np = q.A  # Extract matrix
+            q_np[0, 3] += point[0]  # Modify x-value
+            q_np[1, 3] += point[1] # Modify y-value
+            q_np[2, 3] += point[2] # Modify z-value
+            # Solve inverse kinematics for the modified transformation matrix
+            q_ikine = self.kuka_robot.ikine_GN(q_np)
+            if not q_ikine.success:
+                print('No solution found for the given pose')
+                print(q_ikine.reason)
+                return
+            q_ikine = q_ikine.q
+            self.kuka_robot.q = q_ikine
+            q_ikine = np.rad2deg(q_ikine)
+            q_ikine = q_ikine.tolist()
+            print(f'End-effector pose: {q_ikine}')
+            self.PTPList.append(q_ikine)
+            print(q_ikine)
+        q = self.kuka_robot.fkine(self.kuka_robot.q)
+        q_np = q.A
+    def __bezierCurve(self, start, end, top, t):
+        # Bezier curve calculation
+        return (1-t)**2 * start + 2 * (1-t) * t * top + t**2 * end
     def linearRun(self):
         if len(self.PTPList) == 0:
             print('Please provide a pose first, using linearPTP()')
@@ -180,7 +217,7 @@ class robotMovement:
             return
         # Displaying the joint angles
         self.sol_lists = [0] * len(self.solution.q)
-        self.sol_lists = self.solution.q * 180 / np.pi
+        self.sol_lists = np.rad2deg(self.solution.q)
         self.sol_lists = self.sol_lists.tolist()
         # Writing the file
         if plot:
@@ -213,28 +250,10 @@ class robotMovement:
         traj = rtb.jtraj(self.kuka_robot.q,pose, 100)
         self.kuka_robot.plot(traj.q,block=True,backend='pyplot', eeframe=True,dt=0.05,limits=[-300,300,-300,400,0,400])
         self.kuka_robot.q = q0old
-    def __errorCorrection(self, new_q):
-        # Correct the joint angles based on the angular error
-        for i in range(6):  # Loop over all joints (0 to 5)
-            # If the angle is below the lower limit
-            if new_q[i] < self.limitsDegrees[i][0]:
-                new_q[i] += self.angular_error[i]
-            
-            # If the angle is above the upper limit
-            elif new_q[i] > self.limitsDegrees[i][1]:
-                new_q[i] -= self.angular_error[i]
-            
-            # Ensure that the joint angle stays within the limits
-            if new_q[i] < self.limitsDegrees[i][0]:
-                new_q[i] = self.limitsDegrees[i][0]
-            elif new_q[i] > self.limitsDegrees[i][1]:
-                new_q[i] = self.limitsDegrees[i][1]
-        
-        return new_q
     def writeFile(self, sols):
-        self.corrected_angles_degrees = []
+        self.corrected_angles_degrees = sols
         if self.firstRun and self.homingState == True:
-            for sol in sols:
+            for sol in self.corrected_angles_degrees:
                 for i in range(6):
                     if self.limitsDegreesRobot[i] > 0:
                         sol[i] += self.angular_error[i]
@@ -242,9 +261,6 @@ class robotMovement:
                         sol[i] -= self.angular_error[i]
             print("Corrected angles: ",sols)
             self.firstRun = False
-        else:
-            self.corrected_angles_degrees = np.rad2deg(self.kuka_robot.q)
-            self.corrected_angles_degrees = self.corrected_angles_degrees.tolist()
         # Writing the python file for the robot
         content = (
     "from pybricks.hubs import InventorHub\n"
