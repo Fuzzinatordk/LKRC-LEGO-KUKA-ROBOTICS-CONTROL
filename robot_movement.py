@@ -9,7 +9,7 @@ class robotMovement:
         # Limits for the robot joints in degrees
         self.limitsDegrees = [[-170, 170], [-150,-10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
         # Limits for robot
-        self.limitsCorrected = [[-170, 170], [-150,-30], [30, 155], [-350, 350], [-115, 115], [-350, 350]]
+        self.limitsCorrected = [[-170, 170], [-150,-15], [30, 155], [-350, 350], [-115, 115], [-350, 350]]
         self.limitsDegreesRobot = [-170,-150,155,-350,-115,-350]
         self.angular_error = [0,0,0,0,0,0]
         self.PTPList = []
