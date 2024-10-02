@@ -70,7 +70,7 @@ This can be fixed by navigating to Pyplot.py and go to line 575 and replace the 
   Shows the joint movement overtime from q0 to angles if its within the limits <br>
   *SHOULD BE IN RADIANS
 - **posePlot([angles])** <br>
-  Shows the plot going from q0 to the given angles in a matplotlib frame
+  Shows the plot going from q0 to the given angles in a matplotlib frame <br>
   *SHOULD BE IN RADIANS
   
   
