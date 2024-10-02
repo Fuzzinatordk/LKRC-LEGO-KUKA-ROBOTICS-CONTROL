@@ -55,7 +55,7 @@ class robotMovement:
         self.kuka_robot.q = self.q0home     
         self.kuka_robot.qlim = limitArray
         #Homing
-        #self.__writeFile(self.solutionList)
+        self.__writeFile(self.solutionList)
     def homing(self):
         self.homingState = False
         self.solutionList.clear()
