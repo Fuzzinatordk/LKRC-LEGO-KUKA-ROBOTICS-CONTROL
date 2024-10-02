@@ -353,7 +353,7 @@ class robotMovement:
     "    else:\n"
     "       for direction_list in list:\n"
     "           run_task(driveMotors(direction_list))\n"
-    "           wait(1000)\n\n"
+    "           wait(2500)\n\n"
     "       angles = [Joint1.angle(),Joint2.angle(),Joint3.angle(),Joint4.angle(),Joint5.angle(),Joint6.angle()]\n"
     "       print('Angle result =',angles)\n"
     
