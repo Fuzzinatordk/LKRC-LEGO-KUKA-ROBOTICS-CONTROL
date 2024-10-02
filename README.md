@@ -40,36 +40,36 @@ This can be fixed by navigating to Pyplot.py and go to line 575 and replace the 
   run.linearPTP([0,50,0])
   run.linearRun()
   ````
-- **FK_solution([angles],'type')**
+- **FK_solution([angles],'type')** <br>
   Takes a joint configuration in either degrees or radians, the default type is degrees, but if the unit is in radians type can be set to 'rad' <br>
   And then if the joints are within the limits, it returns the end-effector transformation matrix given from base to end-effector.
-- **homing()**
+- **homing()** <br>
   Homes the robot to its initial configuration
-- **DH()**
+- **DH()** <br>
   Returns the DH parameters.
-- **getJacob()**
+- **getJacob()** <br>
   Returns the jacobian of the robot given the current configuration q0.
-- **FK([pose],'type',plot=False,PTP=False)**
+- **FK([pose],'type',plot=False,PTP=False)** <br>
   FK(forward kinematics) calculates the end-effector transformation matrix from base to end, and returns the matrix if a solution was found. <br>
   First argument is a pose, given as a list with the length 6. Secondly type is the unit of the pose (rad/deg), default is deg.<br>
   Thirdly you can plot the pose from q0 to the given pose if a solution is found by setting it to True.<br>
   Lastly PTP shows how the joints degree change over time during the movement, and the plot can be shown if you parse the argument as True.
-- **IK([pose],'type',plot=False,PTP=False)**
+- **IK([pose],'type',plot=False,PTP=False)** <br>
   IK(inverse kinematics) Takes the given end-effector position and orientation [x,y,z,theta_x,theta_y,theta_z] and tries to solve for a joint configuration, respecting the limits and then it sends it to the robot 
   to run it. <br>
   Thirdly you can plot the pose from q0 to the given pose if a solution is found by setting it to True.<br>
   Lastly PTP shows how the joints degree change over time during the movement, and the plot can be shown if you parse the argument as True.
-- **randomPose(plot=False,PTP=False)**
+- **randomPose(plot=False,PTP=False)** <br>
   Generates a random pose within the limits and can be visualized by the plot argument or/and PTP by setting its corresponding argument to True <br>
   Afterwards the instruction is sent to the robot and runs it.
-- **limitsDeg()**
+- **limitsDeg()** <br>
   Returns the joint limits in degrees
-- **limitsRad()**
+- **limitsRad()** <br>
   Returns the joint limits in radians
-- **PTPplot([angles])**
+- **PTPplot([angles])** <br>
   Shows the joint movement overtime from q0 to angles if its within the limits <br>
   *SHOULD BE IN RADIANS
-- **posePlot([angles])
+- **posePlot([angles])** <br>
   Shows the plot going from q0 to the given angles in a matplotlib frame
   *SHOULD BE IN RADIANS
   
