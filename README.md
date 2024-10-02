@@ -4,7 +4,8 @@ This repository contains a Python-based control system for a KUKA 6-DOF robot, u
 
 ## Requirements
 
-The script is only tested on windows and requires bluetooth functionality to operate
+The script is only tested on windows and requires bluetooth functionality to operate <br>
+Pybricks firmware on the device (https://pybricks.com/)
 
 ## Dependencies
 
