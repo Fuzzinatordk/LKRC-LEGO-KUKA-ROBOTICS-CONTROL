@@ -9,7 +9,7 @@ class robotMovement:
         # Limits for the robot joints in degrees
         self.limitsDegrees = [[-170, 170], [-150,-10], [10, 155], [-350, 350], [-115, 115], [-350, 350]]
         # Limits for robot
-        self.limitsCorrected = [[-170, 170], [-150,-15], [30, 155], [-350, 350], [-115, 115], [-350, 350]]
+        self.limitsCorrected = [[-170, 170], [-150,-30], [30, 155], [-350, 350], [-115, 115], [-350, 350]]
         self.limitsDegreesRobot = [-170,-150,155,-350,-115,-350]
         self.angular_error = [0,0,0,0,0,0]
         self.PTPList = []
@@ -55,11 +55,11 @@ class robotMovement:
         self.kuka_robot.q = self.q0home     
         self.kuka_robot.qlim = limitArray
         #Homing
-        self.writeFile(self.solutionList)
+        #self.__writeFile(self.solutionList)
     def homing(self):
         self.homingState = False
         self.solutionList.clear()
-        self.writeFile(self.solutionList)    
+        self.__writeFile(self.solutionList)    
     def teach(self):
         # Teaching the robot
         taught = self.kuka_robot.teach(self.kuka_robot.q,block=True,backend='pyplot',limits=[-300,300,-300,400,0,400])
@@ -129,7 +129,7 @@ class robotMovement:
             print('Please provide a pose first, using linearPTP()')
             return
         self.checkRun = True
-        self.writeFile(self.PTPList)
+        self.__writeFile(self.PTPList)
     def FK_solution(self,angles,type):
         # Checking if the number of angles provided is correct
         if len(angles) != 6:
@@ -189,7 +189,7 @@ class robotMovement:
         angles = angles.tolist()
         self.solutionList.append(angles)
         # Writing the file
-        self.writeFile(self.solutionList)
+        self.__writeFile(self.solutionList)
         
           
     def IK(self,pose,type,plot=False,PTP=False):
@@ -227,7 +227,7 @@ class robotMovement:
         # Stating new q0 for the robot to start from
         self.kuka_robot.q = np.ndarray(shape=(1,6),dtype=float, order='F', buffer=self.solution.q)
         self.solutionList.append(self.sol_lists)
-        self.writeFile(self.solutionList)
+        self.__writeFile(self.solutionList)
     def randomPose(self, plot=False,PTP=False):
         # Generating random joint angles for the robot
         randomQ = np.random.uniform(self.limitsRadian[:,0],self.limitsRadian[:,1])
@@ -248,7 +248,7 @@ class robotMovement:
         traj = rtb.jtraj(self.kuka_robot.q,pose, 100)
         self.kuka_robot.plot(traj.q,block=True,backend='pyplot', eeframe=True,dt=0.05,limits=[-300,300,-300,400,0,400])
         self.kuka_robot.q = q0old
-    def writeFile(self, sols):
+    def __writeFile(self, sols):
         self.corrected_angles_degrees = sols
         if self.firstRun and self.homingState == True:
             for sol in self.corrected_angles_degrees:
